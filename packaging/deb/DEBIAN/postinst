@@ -1,0 +1,4 @@
+#!/bin/sh
+set -e
+echo "NetScope installed — run: netscope AS135341"
+exit 0

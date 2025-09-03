@@ -1,0 +1,7 @@
+Package: netscope
+Version: 1.1
+Section: utils
+Priority: optional
+Architecture: all
+Maintainer: p4oT09 <https://t.me/p4oT09>
+Description: NetScope — ASN to IPv4/IPv6 lookup tool with Telegram branding.
