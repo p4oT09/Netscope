@@ -1,5 +1,5 @@
 #!/bin/bash
-# NetScope — Advanced ASN/IP Lookup Tool
+# NetScope — Advanced ASN/IP Lookup Tool (Fixed ISP name)
 # Founder: p4oT09
 
 VERSION="1.1"
@@ -9,7 +9,6 @@ TG_CHANNEL="https://t.me/SecretSubjectChannel"
 TG_GROUP="https://t.me/SecretSubjectBD"
 TG_ID="https://t.me/p4oT09"
 
-# ANSI Colors
 RED='\033[1;31m'; GREEN='\033[1;32m'; BLUE='\033[1;34m'
 CYAN='\033[1;36m'; YELLOW='\033[1;33m'; MAGENTA='\033[1;35m'; RESET='\033[0m'
 
@@ -33,8 +32,89 @@ while [ $# -gt 0 ]; do
     *) echo "❌ Unknown arg: $1"; usage; exit 1;;
   esac
 done
-if [ -z "$ASN" ]; then usage; exit 1; fi
+[ -z "$ASN" ] && { usage; exit 1; }
 mkdir -p "$OUTDIR"
+
+# ---------------- ISP Full Name (robust) ----------------
+# 1) ASN whois (APNIC)
+AUTNUM="$(whois -h whois.apnic.net -r -B "$ASN" 2>/dev/null || true)"
+
+# 2) সম্ভাব্য ফিল্ডগুলো থেকে ORG হ্যান্ডেল/নাম বের করা
+ORG_HANDLE="$(
+  printf '%s\n' "$AUTNUM" |
+  awk -F': *' '
+    /^org:/           {print $2; exit}
+    /^organisation:/  {print $2; exit}
+  '
+)"
+
+# 3) org হ্যান্ডেল থাকলে org-object কুয়েরি করে org-name/organisation নাও
+ISP_NAME=""
+if [ -n "$ORG_HANDLE" ]; then
+  ORGWHOIS="$(whois -h whois.apnic.net -r -B "$ORG_HANDLE" 2>/dev/null || true)"
+  ISP_NAME="$(
+    printf '%s\n' "$ORGWHOIS" |
+    awk -F': *' '
+      /^org-name:/       {print $2; exit}
+      /^organisation:/   {print $2; exit}
+      /^descr:/          {print $2; exit}
+    '
+  )"
+fi
+
+# 4) org না পেলে সরাসরি aut-num থেকে নাম ট্রাই করো (fallback chain)
+[ -z "$ISP_NAME" ] && ISP_NAME="$(
+  printf '%s\n' "$AUTNUM" |
+  awk -F': *' '
+    /^org-name:/     {print $2; exit}
+    /^organisation:/ {print $2; exit}
+    /^descr:/        {print $2; exit}
+    /^as-name:/      {print $2; exit}
+  '
+)"
+
+# 5) চূড়ান্ত ফallback
+[ -z "$ISP_NAME" ] && ISP_NAME="$ASN"
+
+# 6) ফাইল-নেম সেফ
+SAFE_NAME="$(echo "$ISP_NAME" | sed 's/[[:space:]]\+/_/g' | tr -cd '[:alnum:]_.-')"
+[ -z "$SAFE_NAME" ] && SAFE_NAME="$ASN"
+
+# ---------------- Banner ----------------
+clear
+echo -e "${MAGENTA}====================================================${RESET}"
+echo -e "${CYAN}                $TOOLNAME v$VERSION${RESET}"
+echo -e "${GREEN}                Founder: $FOUNDER${RESET}"
+echo -e "${MAGENTA}====================================================${RESET}"
+echo -e "${YELLOW}ASN:${RESET} $ASN"
+echo -e "${YELLOW}ISP:${RESET} $ISP_NAME"
+echo -e "${MAGENTA}====================================================${RESET}"
+echo -e "${CYAN}Channel:${RESET} $TG_CHANNEL"
+echo -e "${CYAN}Group:  ${RESET} $TG_GROUP"
+echo -e "${CYAN}Contact:${RESET} $TG_ID"
+echo -e "${MAGENTA}====================================================${RESET}"
+
+fetch_ipv4() {
+  local file="$OUTDIR/${SAFE_NAME}_ipv4.txt"
+  whois -h whois.radb.net -i origin "$ASN" 2>/dev/null |
+    awk '/^route:/{print $2}' | sort -V -u > "$file"
+  { echo "ASN: $ASN | ISP: $ISP_NAME"; cat "$file"; } > "${file}.tmp" && mv "${file}.tmp" "$file"
+  echo -e "✅ ${GREEN}IPv4 prefixes saved to:${RESET} $file"
+}
+
+fetch_ipv6() {
+  local file="$OUTDIR/${SAFE_NAME}_ipv6.txt"
+  whois -h whois.radb.net -i origin "$ASN" 2>/dev/null |
+    awk '/^route6:/{print $2}' | sort -V -u > "$file"
+  { echo "ASN: $ASN | ISP: $ISP_NAME"; cat "$file"; } > "${file}.tmp" && mv "${file}.tmp" "$file"
+  echo -e "✅ ${GREEN}IPv6 prefixes saved to:${RESET} $file"
+}
+
+case "$MODE" in
+  ipv4) fetch_ipv4;;
+  ipv6) fetch_ipv6;;
+  both) fetch_ipv4; fetch_ipv6;;
+esacmkdir -p "$OUTDIR"
 
 # ---------- ISP Full Name ----------
 AUTNUM="$(whois -h whois.apnic.net -r -B "$ASN" 2>/dev/null || true)"
