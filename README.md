@@ -17,12 +17,14 @@
 
 > **Dependencies:** `whois`, `awk`, `sort`
 
-## 📦 Installing Process
+## 📦 ZIP থেকে ইনস্টল
 ```bash
-git clone https://github.com/p4oT09/Netscope.git
+unzip NetScope-*.zip
+cd netscope
+./install.sh
 ```
 
-## 🚀 Command
+## 🚀 ব্যবহার
 ```bash
 netscope AS135341            # IPv4 (ডিফল্ট)
 netscope AS135341 --ipv6     # শুধু IPv6
@@ -30,6 +32,10 @@ netscope AS135341 --both     # IPv4 + IPv6
 netscope -h                  # হেল্প
 ```
 
+## 🗑️ আনইনস্টল
+```bash
+sudo rm -f /usr/local/bin/netscope      # Termux: rm -f $PREFIX/bin/netscope
+```
 
 ## 🪪 লাইসেন্স
 MIT — বিস্তারিত দেখুন [LICENSE](LICENSE)।
